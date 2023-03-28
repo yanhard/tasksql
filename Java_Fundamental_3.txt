@@ -1,0 +1,599 @@
+Detail_karyawan:
+id (PK)
+id_karyawan (FK)
+nik
+npwp
+
+
+karyawan:
+id (PK)
+nama
+jk
+dob
+status
+alamat
+
+
+karyawan_training
+id (pk)
+id_karyawan (FK)
+id_training (FK)
+tanggal_training
+
+Rekening
+id(PK)
+id_karyawan (FK)
+nama
+jenis
+nomor
+
+
+training
+id(PK)
+tema
+nama_pengajar
+
+
+-- Membuat tabel karyawan
+CREATE TABLE karyawan (
+    id INT PRIMARY KEY,
+    nama VARCHAR(255),
+    jk CHAR(1),
+    dob DATE,
+    status VARCHAR(255),
+    alamat VARCHAR(255)
+);
+
+-- Membuat tabel detail_karyawan
+CREATE TABLE detail_karyawan (
+    id INT PRIMARY KEY,
+    id_karyawan INT,
+    nik VARCHAR(255),
+    npwp VARCHAR(255),
+    FOREIGN KEY (id_karyawan) REFERENCES karyawan (id)
+);
+
+
+-- Membuat tabel rekening
+CREATE TABLE rekening (
+    id INT PRIMARY KEY,
+    id_karyawan INT,
+    nama VARCHAR(255),
+    jenis VARCHAR(255),
+    nomor VARCHAR(255),
+    FOREIGN KEY (id_karyawan) REFERENCES karyawan (id)
+);
+
+
+===
+
+
+-- Membuat tabel training
+CREATE TABLE training (
+    id INT PRIMARY KEY,
+    tema VARCHAR(255),
+    nama_pengajar VARCHAR(255)
+);
+
+=====
+
+
+-- Membuat tabel karyawan_training
+CREATE TABLE karyawan_training (
+    id INT PRIMARY KEY,
+    id_karyawan INT,
+    id_training INT,
+    tanggal_training DATE,
+    FOREIGN KEY (id_karyawan) REFERENCES karyawan (id),
+    FOREIGN KEY (id_training) REFERENCES training (id)
+);
+
+=====
+
+DELIMITER $$
+
+CREATE PROCEDURE SaveKaryawan(
+    INOUT p_nama VARCHAR(255),
+    INOUT p_jk CHAR(1),
+    INOUT p_dob DATE,
+    INOUT p_alamat VARCHAR(255),
+    INOUT p_status VARCHAR(255),
+    INOUT p_nik VARCHAR(255),
+    INOUT p_npwp VARCHAR(255),
+    INOUT p_id BIGINT,
+    OUT p_error_desc VARCHAR(255),
+    OUT p_error_code INTEGER
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+        @p_error_code = MYSQL_ERRNO, @p_error_desc = MESSAGE_TEXT;
+        SET p_error_code = @p_error_code, p_error_desc = @p_error_desc;
+    END;
+
+    START TRANSACTION;
+    -- Insert data ke tabel karyawan
+    INSERT INTO karyawan (id, nama, jk, dob, status, alamat)
+    VALUES (p_id, p_nama, p_jk, p_dob, p_status, p_alamat);
+
+    -- Insert data ke tabel detail_karyawan
+    INSERT INTO detail_karyawan (id_karyawan, nik, npwp)
+    VALUES (p_id, p_nik, p_npwp);
+
+    COMMIT;
+END$$
+
+DELIMITER ;
+
+
+========
+
+
+DELIMITER $$
+
+CREATE PROCEDURE UpdateKaryawan(
+    INOUT p_nama VARCHAR(255),
+    INOUT p_jk CHAR(1),
+    INOUT p_dob DATE,
+    INOUT p_alamat VARCHAR(255),
+    INOUT p_status VARCHAR(255),
+    INOUT p_nik VARCHAR(255),
+    INOUT p_npwp VARCHAR(255),
+    INOUT p_id BIGINT,
+    OUT p_error_desc VARCHAR(255),
+    OUT p_error_code INTEGER
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+        @p_error_code = MYSQL_ERRNO, @p_error_desc = MESSAGE_TEXT;
+        SET p_error_code = @p_error_code, p_error_desc = @p_error_desc;
+    END;
+
+    START TRANSACTION;
+    -- Update data pada tabel karyawan
+    UPDATE karyawan
+    SET nama = p_nama,
+        jk = p_jk,
+        dob = p_dob,
+        status = p_status,
+        alamat = p_alamat
+    WHERE id = p_id;
+
+    -- Update data pada tabel detail_karyawan
+    UPDATE detail_karyawan
+    SET nik = p_nik,
+        npwp = p_npwp
+    WHERE id_karyawan = p_id;
+
+    COMMIT;
+END$$
+
+DELIMITER ;
+
+
+======
+
+DELIMITER $$
+
+CREATE FUNCTION getListKaryawan(p_nama VARCHAR(255))
+RETURNS TEXT
+DETERMINISTIC
+BEGIN
+    DECLARE result TEXT;
+
+    SET @sql = CONCAT('
+        SELECT GROUP_CONCAT(CONCAT_WS(", ", id, nama, jk, dob, status, alamat) SEPARATOR "\n")
+        FROM karyawan
+        WHERE nama LIKE CONCAT("%", ?, "%")
+    ');
+
+    PREPARE stmt FROM @sql;
+    SET @p_nama = p_nama;
+    EXECUTE stmt USING @p_nama;
+    DEALLOCATE PREPARE stmt;
+
+    SET result = @result;
+    RETURN result;
+END$$
+
+DELIMITER ;
+
+
+SELECT getListKaryawan('nama_karyawan');
+
+
+============
+
+DELIMITER $$
+
+CREATE FUNCTION getKaryawan(p_id BIGINT)
+RETURNS TEXT
+DETERMINISTIC
+BEGIN
+    DECLARE result TEXT;
+
+    SET @sql = CONCAT('
+        SELECT GROUP_CONCAT(CONCAT_WS(", ", id, nama, jk, dob, status, alamat) SEPARATOR "\n")
+        FROM karyawan
+        WHERE id = ?
+    ');
+
+    PREPARE stmt FROM @sql;
+    SET @p_id = p_id;
+    EXECUTE stmt USING @p_id;
+    DEALLOCATE PREPARE stmt;
+
+    SET result = @result;
+    RETURN result;
+END$$
+
+DELIMITER ;
+
+SELECT getKaryawan(1);
+
+============
+
+DELIMITER $$
+
+CREATE PROCEDURE SaveTraining(
+    INOUT p_tema VARCHAR(255),
+    INOUT p_nama_pengajar VARCHAR(255),
+    INOUT p_id BIGINT,
+    OUT p_error_desc VARCHAR(255),
+    OUT p_error_code INTEGER
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+        @p_error_code = MYSQL_ERRNO, @p_error_desc = MESSAGE_TEXT;
+        SET p_error_code = @p_error_code, p_error_desc = @p_error_desc;
+    END;
+
+    -- Insert data ke tabel training
+    INSERT INTO training (id, tema, nama_pengajar)
+    VALUES (p_id, p_tema, p_nama_pengajar);
+
+END$$
+
+DELIMITER ;
+
+
+==========
+
+DELIMITER $$
+
+CREATE PROCEDURE UpdateTraining(
+    INOUT p_tema VARCHAR(255),
+    INOUT p_nama_pengajar VARCHAR(255),
+    INOUT p_id BIGINT,
+    OUT p_error_desc VARCHAR(255),
+    OUT p_error_code INTEGER
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+        @p_error_code = MYSQL_ERRNO, @p_error_desc = MESSAGE_TEXT;
+        SET p_error_code = @p_error_code, p_error_desc = @p_error_desc;
+    END;
+
+    -- Update data pada tabel training
+    UPDATE training
+    SET tema = p_tema,
+        nama_pengajar = p_nama_pengajar
+    WHERE id = p_id;
+
+END$$
+
+DELIMITER ;
+
+
+===========
+
+DELIMITER $$
+
+CREATE PROCEDURE getListTraining(IN p_tema VARCHAR(255))
+BEGIN
+    SET @sql = CONCAT('
+        SELECT id, tema, nama_pengajar
+        FROM training
+        WHERE tema LIKE CONCAT("%", ?, "%")
+    ');
+
+    PREPARE stmt FROM @sql;
+    SET @p_tema = p_tema;
+    EXECUTE stmt USING @p_tema;
+    DEALLOCATE PREPARE stmt;
+END$$
+
+DELIMITER ;
+
+
+CALL getListTraining('tema_training');
+
+
+======
+
+DELIMITER $$
+
+CREATE PROCEDURE getByIdTraining(IN p_id BIGINT)
+BEGIN
+    SET @sql = CONCAT('
+        SELECT id, tema, nama_pengajar
+        FROM training
+        WHERE id = ?
+    ');
+
+    PREPARE stmt FROM @sql;
+    SET @p_id = p_id;
+    EXECUTE stmt USING @p_id;
+    DEALLOCATE PREPARE stmt;
+END$$
+
+DELIMITER ;
+
+
+CALL getByIdTraining(1);
+
+
+===========
+
+DELIMITER $$
+
+CREATE PROCEDURE SaveTrainingKaryawan(
+    INOUT p_id_karyawan BIGINT,
+    INOUT p_id_training BIGINT,
+    INOUT p_tanggal_training DATE,
+    INOUT p_id BIGINT,
+    OUT p_error_desc VARCHAR(255),
+    OUT p_error_code INTEGER
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+        @p_error_code = MYSQL_ERRNO, @p_error_desc = MESSAGE_TEXT;
+        SET p_error_code = @p_error_code, p_error_desc = @p_error_desc;
+    END;
+
+    -- Insert data ke tabel karyawan_training
+    INSERT INTO karyawan_training (id, id_karyawan, id_training, tanggal_training)
+    VALUES (p_id, p_id_karyawan, p_id_training, p_tanggal_training);
+
+END$$
+
+DELIMITER ;
+
+
+======
+
+
+
+DELIMITER $$
+
+CREATE PROCEDURE deleteTrainingKaryawan(
+    INOUT p_id BIGINT,
+    OUT p_error_desc VARCHAR(255),
+    OUT p_error_code INTEGER
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+        @p_error_code = MYSQL_ERRNO, @p_error_desc = MESSAGE_TEXT;
+        SET p_error_code = @p_error_code, p_error_desc = @p_error_desc;
+    END;
+
+    -- Hapus data dari tabel karyawan_training
+    DELETE FROM karyawan_training
+    WHERE id = p_id;
+
+END$$
+
+DELIMITER ;
+
+
+========
+
+
+DELIMITER $$
+
+CREATE PROCEDURE saveRekening(
+    INOUT p_id_karyawan BIGINT,
+    INOUT p_nama VARCHAR(255),
+    INOUT p_jenis VARCHAR(255),
+    INOUT p_nomor VARCHAR(255),
+    INOUT p_id BIGINT,
+    OUT p_error_desc VARCHAR(255),
+    OUT p_error_code INTEGER
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+        @p_error_code = MYSQL_ERRNO, @p_error_desc = MESSAGE_TEXT;
+        SET p_error_code = @p_error_code, p_error_desc = @p_error_desc;
+    END;
+
+    -- Insert data ke tabel Rekening
+    INSERT INTO Rekening (id, id_karyawan, nama, jenis, nomor)
+    VALUES (p_id, p_id_karyawan, p_nama, p_jenis, p_nomor);
+
+END$$
+
+DELIMITER ;
+
+
+
+=========
+
+
+DELIMITER $$
+
+CREATE PROCEDURE updateRekening(
+    INOUT p_id_karyawan BIGINT,
+    INOUT p_nama VARCHAR(255),
+    INOUT p_jenis VARCHAR(255),
+    INOUT p_nomor VARCHAR(255),
+    INOUT p_id BIGINT,
+    OUT p_error_desc VARCHAR(255),
+    OUT p_error_code INTEGER
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+        @p_error_code = MYSQL_ERRNO, @p_error_desc = MESSAGE_TEXT;
+        SET p_error_code = @p_error_code, p_error_desc = @p_error_desc;
+    END;
+
+    -- Update data pada tabel Rekening
+    UPDATE Rekening
+    SET id_karyawan = p_id_karyawan,
+        nama = p_nama,
+        jenis = p_jenis,
+        nomor = p_nomor
+    WHERE id = p_id;
+
+END$$
+
+DELIMITER ;
+
+
+
+============
+
+ALTER TABLE Rekening
+ADD deleted_date DATETIME DEFAULT NULL;
+
+
+DELIMITER $$
+
+CREATE PROCEDURE deleteRekening(
+    INOUT p_id BIGINT,
+    OUT p_error_desc VARCHAR(255),
+    OUT p_error_code INTEGER
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+        @p_error_code = MYSQL_ERRNO, @p_error_desc = MESSAGE_TEXT;
+        SET p_error_code = @p_error_code, p_error_desc = @p_error_desc;
+    END;
+
+    -- Soft delete data pada tabel Rekening dengan mengisi deleted_date
+    UPDATE Rekening
+    SET deleted_date = NOW()
+    WHERE id = p_id;
+
+END$$
+
+DELIMITER ;
+
+
+
+==============
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
